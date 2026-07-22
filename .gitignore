@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# Xcode user-specific state
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+
+# Build products and caches
+build/
+DerivedData/
+*.dSYM
+*.dSYM.zip
+*.ipa
+
+# Editor and source-server settings
+.vscode/
+buildServer.json
+
+# Local credentials and signing files
+.env
+.env.*
+*.p12
+*.mobileprovision
