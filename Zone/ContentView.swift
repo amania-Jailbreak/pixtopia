@@ -3840,15 +3840,20 @@ private struct PixivWebView: UIViewRepresentable {
         ) {
             guard let url = navigationAction.request.url else {
                 decisionHandler(.cancel)
+                onFailure("ログイン先のURLを確認できませんでした")
                 return
             }
 
-            let host = url.host?.lowercased() ?? ""
-            let isPixivHost = host == "pixiv.net" || host.hasSuffix(".pixiv.net")
-            let isTwitterHost = host == "twitter.com" || host.hasSuffix(".twitter.com")
-                || host == "x.com" || host.hasSuffix(".x.com")
-            let isHTTPS = url.scheme?.lowercased() == "https"
-            decisionHandler((isPixivHost || isTwitterHost) && isHTTPS ? .allow : .cancel)
+            let scheme = url.scheme?.lowercased()
+            let isHTTPS = scheme == "https"
+            let isInternalBlankPage = scheme == "about" && url.absoluteString == "about:blank"
+
+            if isHTTPS || isInternalBlankPage {
+                decisionHandler(.allow)
+            } else {
+                decisionHandler(.cancel)
+                onFailure("対応していないログイン先へ移動しようとしました")
+            }
         }
 
         func webView(
@@ -3857,7 +3862,7 @@ private struct PixivWebView: UIViewRepresentable {
             for navigationAction: WKNavigationAction,
             windowFeatures: WKWindowFeatures
         ) -> WKWebView? {
-            // Twitter/XのOAuthがtarget=_blankやwindow.openで開始されても、
+            // Apple・Google・Twitter/XなどのOAuthがtarget=_blankやwindow.openで開始されても、
             // 別ウィンドウを作らず、このログインWebView内で続行する。
             if let url = navigationAction.request.url {
                 webView.load(URLRequest(url: url))
@@ -3897,6 +3902,26 @@ private struct PixivWebView: UIViewRepresentable {
             withError error: Error
         ) {
             isCheckingSession = false
+            reportNavigationFailure(error)
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            didFailProvisionalNavigation navigation: WKNavigation!,
+            withError error: Error
+        ) {
+            isCheckingSession = false
+            reportNavigationFailure(error)
+        }
+
+        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            isCheckingSession = false
+            onFailure("ログイン画面が停止しました。閉じてもう一度お試しください")
+        }
+
+        private func reportNavigationFailure(_ error: Error) {
+            let nsError = error as NSError
+            guard nsError.code != NSURLErrorCancelled else { return }
             onFailure("ログイン画面を読み込めませんでした: \(error.localizedDescription)")
         }
     }
